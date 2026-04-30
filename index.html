@@ -3,24 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>智能默写 - 终极代理版</title>
+    <title>2026 智能默写 (原生适配版)</title>
     <style>
         :root { --primary: #007AFF; --success: #34C759; --danger: #FF3B30; }
         body { font-family: -apple-system, sans-serif; margin: 0; background: #F2F2F7; display: flex; flex-direction: column; align-items: center; }
-        .main-container { width: 92%; max-width: 800px; margin: 20px auto; padding-bottom: 50px; }
+        .main-container { width: 92%; max-width: 600px; margin: 20px auto; padding-bottom: 50px; }
         .card { background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        #word-display { font-size: 2.5rem; font-weight: bold; color: var(--primary); text-align: center; height: 60px; }
-        .stats { display: flex; justify-content: space-around; font-size: 0.8rem; color: #666; margin-bottom: 10px; }
-        #status-msg { text-align: center; height: 30px; font-weight: bold; margin-bottom: 10px; padding: 5px; border-radius: 8px; }
-        .canvas-wrapper { width: 100%; height: 42vh; background: #fff; border: 2px solid #E5E5EA; border-radius: 15px; touch-action: none; position: relative; }
-        canvas { width: 100%; height: 100%; }
-        .btn { height: 60px; border-radius: 14px; border: none; font-size: 1.1rem; font-weight: 600; cursor: pointer; width: 100%; }
-        .btn-primary { background: var(--primary); color: #fff; }
-        .btn-secondary { background: #E5E5EA; color: #3A3A3C; width: 30%; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 10px; }
-        .day-box { aspect-ratio: 1; background: #eee; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
+        
+        /* 进度条 */
+        .stats { display: flex; justify-content: space-around; font-size: 0.8rem; color: #888; margin-bottom: 15px; }
+        
+        /* 核心输入区 */
+        #word-display { font-size: 2.2rem; font-weight: bold; color: var(--primary); text-align: center; min-height: 50px; margin-bottom: 15px; }
+        #answer-input { 
+            width: 100%; height: 80px; font-size: 1.8rem; text-align: center;
+            border: 2px solid #E5E5EA; border-radius: 15px; outline: none;
+            background: #FAFAFA; transition: 0.3s;
+        }
+        #answer-input:focus { border-color: var(--primary); background: #FFF; }
+        
+        .btn { height: 55px; border-radius: 12px; border: none; font-size: 1.1rem; font-weight: 600; cursor: pointer; width: 100%; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: #fff; margin-top: 15px; }
+        
+        #status-msg { text-align: center; margin-top: 10px; font-weight: bold; min-height: 25px; }
+
+        /* 日历 */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 10px; }
+        .day-box { aspect-ratio: 1; background: #F2F2F7; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
         .day-box.done { background: var(--success); color: #fff; }
+        .day-box.today { border: 2px solid var(--primary); }
+        
         textarea { width: 100%; height: 60px; border: 1px solid #ddd; border-radius: 10px; padding: 10px; box-sizing: border-box; }
+        .error-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -28,126 +42,78 @@
 <div class="main-container">
     <div class="card">
         <div class="stats">
-            <span id="cn-progress">中文: 0/20分</span>
-            <span id="en-progress">英文: 0/20分</span>
+            <span id="cn-stat">中文: 0/20分</span>
+            <span id="en-stat">英文: 0/20分</span>
         </div>
-        <div id="word-display">等待开始</div>
+        <div id="word-display">准备挑战</div>
+        <!-- 核心：让孩子在这个框里手写，iPad会自动转成字 -->
+        <input type="text" id="answer-input" placeholder="请手写或输入答案" autocomplete="off" style="display:none;">
         <div id="status-msg"></div>
-        <div class="canvas-wrapper">
-            <canvas id="writeCanvas"></canvas>
-        </div>
-        <div style="display:flex; gap:10px; margin-top:15px;">
-            <button class="btn btn-secondary" onclick="clearBoard()">重写</button>
-            <button class="btn btn-primary" id="sub-btn" onclick="recognize()" style="display:none; flex:2;">提交批改</button>
-        </div>
-        <button id="start-btn" class="btn btn-primary" onclick="startSession()" style="margin-top:15px;">开始今日任务</button>
+        
+        <button id="submit-btn" class="btn btn-primary" onclick="checkAnswer()" style="display:none;">提交批改</button>
+        <button id="start-btn" class="btn btn-primary" onclick="startSession()">开始今日任务</button>
     </div>
 
     <div class="card">
-        <h4 style="margin:0 0 10px">批量词库录入</h4>
-        <textarea id="wordInput" placeholder="词语用逗号隔开..."></textarea>
-        <button class="btn btn-primary" style="height:40px; margin-top:10px;" onclick="saveWords()">存入本地</button>
+        <h4 style="margin:0 0 10px">词库录入 (逗号隔开)</h4>
+        <textarea id="wordInput" placeholder="苹果,Apple,学习..."></textarea>
+        <button class="btn btn-primary" style="height:40px; margin-top:10px;" onclick="saveWords()">存入本地词库</button>
     </div>
 
     <div class="card">
         <h4 style="margin:0 0 10px; color:var(--danger)">错题记录</h4>
-        <div id="error-list" style="font-size:0.9rem;"></div>
+        <div id="error-list"></div>
     </div>
 
     <div class="card">
-        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <b id="cal-title">2026年5月</b>
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-weight:bold;">
+            <span onclick="moveMonth(-1)">❮</span>
+            <span id="cal-title">2026年5月</span>
+            <span onclick="moveMonth(1)">❯</span>
         </div>
         <div class="calendar-grid" id="calendar"></div>
     </div>
 </div>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('dict_vFinal_Proxy')) || { words: [], history: {}, errors: [] };
-    let task = [], idx = 0, strokes = [], currStroke = [];
-    const canvas = document.getElementById('writeCanvas'), ctx = canvas.getContext('2d');
+    let db = JSON.parse(localStorage.getItem('dict_vFinal_Stable')) || { words: [], history: {}, errors: [] };
+    let task = [], idx = 0;
+    let viewDate = new Date(2026, 4, 1);
 
-    function init() {
-        const r = window.devicePixelRatio || 1;
-        canvas.width = canvas.offsetWidth * r;
-        canvas.height = canvas.offsetHeight * r;
-        ctx.scale(r, r);
-        ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
-    }
-    window.addEventListener('resize', init); setTimeout(init, 100);
+    const inputField = document.getElementById('answer-input');
 
-    canvas.addEventListener('touchstart', e => {
-        const rect = canvas.getBoundingClientRect();
-        const p = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-        ctx.beginPath(); ctx.moveTo(p.x, p.y);
-        currStroke = [[Math.round(p.x)], [Math.round(p.y)], [Date.now()]];
-        e.preventDefault();
-    });
-
-    canvas.addEventListener('touchmove', e => {
-        const rect = canvas.getBoundingClientRect();
-        const p = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-        ctx.lineTo(p.x, p.y); ctx.stroke();
-        currStroke[0].push(Math.round(p.x));
-        currStroke[1].push(Math.round(p.y));
-        currStroke[2].push(Date.now());
-        e.preventDefault();
-    });
-
-    canvas.addEventListener('touchend', () => { if (currStroke[0].length > 1) strokes.push(currStroke); });
-
-    function clearBoard() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        strokes = [];
-        document.getElementById('status-msg').innerText = "";
-        document.getElementById('status-msg').style.background = "none";
-    }
-
-    // 核心改进：使用 Proxy 代理 + POST 请求，彻底解决跨域卡死
-    async function recognize() {
-        if (strokes.length === 0) return;
+    // 核心判定逻辑：完全本地化，不联网，不卡顿
+    function checkAnswer() {
+        const userValue = inputField.value.trim().toLowerCase();
+        const targetWord = task[idx].text.trim().toLowerCase();
         const msg = document.getElementById('status-msg');
-        msg.innerText = "🔍 正在通过代理批改...";
-        msg.style.background = "#eee";
 
-        const word = task[idx];
-        const inkData = JSON.stringify(strokes);
-        const googleUrl = `https://www.google.com/inputtools/request?ime=handwriting&app=autotext&cs=1&oe=UTF-8&lang=${word.type === 'zh' ? 'zh-Hans' : 'en'}&ink=${encodeURIComponent(inkData)}`;
+        if (!userValue) return;
 
-        try {
-            // 使用 allorigins 代理绕过 CORS 拦截
-            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(googleUrl)}`);
-            const proxyData = await response.json();
-            const data = JSON.parse(proxyData.contents);
-            
-            if (data[0] === "SUCCESS") {
-                const candidates = data[1][0][1];
-                const target = word.text.trim().toLowerCase();
-                const isOk = candidates.some(c => c.toLowerCase() === target);
-                finalize(isOk, candidates[0]);
-            }
-        } catch (e) {
-            msg.innerText = "⚠️ 代理连接失败，重试中...";
-            setTimeout(recognize, 2000);
+        if (userValue === targetWord) {
+            msg.innerText = "✅ 正确！";
+            msg.style.color = "var(--success)";
+            handleResult(true);
+        } else {
+            msg.innerText = `❌ 错误 (正确答案: ${task[idx].text})`;
+            msg.style.color = "var(--danger)";
+            handleResult(false);
         }
     }
 
-    function finalize(isOk, best) {
-        const msg = document.getElementById('status-msg');
+    function handleResult(isOk) {
         const word = task[idx];
         const item = db.words.find(w => w.text === word.text);
+        const intervals = [0, 1, 2, 4, 7, 15, 30];
 
         if (isOk) {
-            msg.innerText = "✅ 正确"; msg.style.background = "#d4edda";
             item.level = Math.min((item.level || 0) + 1, 6);
         } else {
-            msg.innerText = `❌ 错误 (识为: ${best || '?'})`; msg.style.background = "#f8d7da";
             item.level = 0;
             let err = db.errors.find(e => e.text === word.text);
             if (err) err.count++; else db.errors.push({ text: word.text, count: 1 });
         }
 
-        const intervals = [0, 1, 2, 4, 7, 15, 30];
         let next = new Date();
         next.setDate(next.getDate() + (isOk ? intervals[item.level] : 1));
         item.nextDate = next.toISOString().split('T')[0];
@@ -169,11 +135,12 @@
         }
 
         task = [...cn, ...en];
-        if (task.length === 0) { alert("今天任务已达成！"); return; }
+        if (task.length === 0) { alert("今天没有任务，录入点新词吧！"); return; }
         
         idx = 0;
         document.getElementById('start-btn').style.display = 'none';
-        document.getElementById('sub-btn').style.display = 'block';
+        document.getElementById('submit-btn').style.display = 'block';
+        inputField.style.display = 'block';
         nextWord();
     }
 
@@ -181,24 +148,27 @@
         if (idx >= task.length) {
             db.history[new Date().toISOString().split('T')[0]] = true;
             save(); render();
-            document.getElementById('word-display').innerText = "🏁 任务完成";
-            document.getElementById('sub-btn').style.display = 'none';
+            document.getElementById('word-display').innerText = "🏁 任务完成！";
+            inputField.style.display = 'none';
+            document.getElementById('submit-btn').style.display = 'none';
             document.getElementById('start-btn').style.display = 'block';
             return;
         }
-        clearBoard();
+        inputField.value = "";
+        document.getElementById('status-msg').innerText = "";
         const word = task[idx];
-        document.getElementById('word-display').innerText = "请听写";
+        document.getElementById('word-display').innerText = "请默写词语";
         
-        // 更新进度文字
+        // 更新进度
         const cnd = task.slice(0, idx).filter(w => w.type === 'zh').length;
         const end = task.slice(0, idx).filter(w => w.type === 'en').length;
-        document.getElementById('cn-progress').innerText = `中文: ${cnd}/20分`;
-        document.getElementById('en-progress').innerText = `英文: ${end}/20分`;
+        document.getElementById('cn-stat').innerText = `中文: ${cnd}/20分`;
+        document.getElementById('en-stat').innerText = `英文: ${end}/20分`;
 
         const u = new SpeechSynthesisUtterance(word.text);
         u.lang = word.type === 'zh' ? 'zh-CN' : 'en-US';
         window.speechSynthesis.speak(u);
+        inputField.focus();
     }
 
     function saveWords() {
@@ -209,25 +179,31 @@
                 db.words.push({ text: t, level: 0, type: /[a-zA-Z]/.test(t) ? 'en' : 'zh' });
             }
         });
-        save(); alert("录入成功！");
+        save(); alert("同步成功！");
+        document.getElementById('wordInput').value = "";
     }
 
     function render() {
         const g = document.getElementById('calendar'); g.innerHTML = '';
-        const y = 2026, m = 4; // 2026年5月
+        const y = viewDate.getFullYear(), m = viewDate.getMonth();
+        document.getElementById('cal-title').innerText = `${y}年${m+1}月`;
         const first = new Date(y, m, 1).getDay();
         const last = new Date(y, m + 1, 0).getDate();
+        const todayStr = new Date().toISOString().split('T')[0];
+
         for (let i = 0; i < first; i++) g.appendChild(document.createElement('div'));
         for (let d = 1; d <= last; d++) {
-            const ds = `${y}-05-${String(d).padStart(2,'0')}`;
+            const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
             const b = document.createElement('div');
             b.className = 'day-box' + (db.history[ds] ? ' done' : '');
+            if(ds === todayStr) b.classList.add('today');
             b.innerText = d; g.appendChild(b);
         }
-        document.getElementById('error-list').innerHTML = db.errors.sort((a,b)=>b.count-a.count).slice(0,5).map(e => `<div>${e.text} (错${e.count}次)</div>`).join('');
+        document.getElementById('error-list').innerHTML = db.errors.sort((a,b)=>b.count-a.count).slice(0,5).map(e => `<div class="error-item"><span>${e.text}</span><span style="color:var(--danger)">${e.count}次错</span></div>`).join('');
     }
 
-    function save() { localStorage.setItem('dict_vFinal_Proxy', JSON.stringify(db)); }
+    function moveMonth(s) { viewDate.setMonth(viewDate.getMonth() + s); render(); }
+    function save() { localStorage.setItem('dict_vFinal_Stable', JSON.stringify(db)); }
     render();
 </script>
 </body>
