@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>2026 智能默写 - 深度优化版</title>
+    <title>2026 智能默写 - 精准退格版</title>
     <style>
         :root { --primary: #007AFF; --success: #34C759; --danger: #FF3B30; --bg: #F2F2F7; }
         body { font-family: -apple-system, sans-serif; margin: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; }
@@ -17,7 +17,6 @@
         .stats { display: flex; justify-content: space-around; font-size: 0.9rem; color: #666; margin-bottom: 10px; font-weight: bold; }
         #word-display { font-size: 2.2rem; font-weight: 800; color: var(--primary); text-align: center; min-height: 50px; }
         
-        /* 优化：更大的写字区，适配 Apple Pencil */
         #scribble-input { 
             width: 100%; height: 32vh; font-size: 1.8rem; text-align: center;
             border: 2px dashed #D1D1D6; border-radius: 20px; outline: none;
@@ -28,7 +27,8 @@
         .btn { height: 65px; border-radius: 16px; border: none; font-size: 1.2rem; font-weight: 700; cursor: pointer; width: 100%; transition: 0.2s; }
         .btn-primary { background: var(--primary); color: #fff; margin-top: 10px; }
         .btn-secondary { background: #E5E5EA; color: #3A3A3C; margin-top: 8px; }
-        .btn-danger { background: #fee2e2; color: var(--danger); margin-top: 8px; border: 1px solid var(--danger); }
+        /* 修正后的擦除/退格按钮颜色 */
+        .btn-delete { background: #F2F2F7; color: #3A3A3C; border: 1px solid #D1D1D6; margin-top: 8px; }
         .btn:active { opacity: 0.7; transform: scale(0.98); }
 
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 10px; }
@@ -37,15 +37,14 @@
         .day-box.today { border: 2px solid var(--primary); }
 
         textarea.admin-input { width: 100%; height: 65px; border: 1px solid #ddd; border-radius: 12px; padding: 10px; box-sizing: border-box; font-size: 1rem; }
-        .error-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; font-size: 1rem; color: #333; }
+        .error-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; font-size: 1rem; }
     </style>
 </head>
 <body>
 
 <div class="main-container">
-    <!-- 声音配置 -->
     <div class="card voice-config">
-        <div><b>🔊 语速已设为极慢 (0.5x)</b></div>
+        <div><b>🔊 语速锁定：0.5 倍极慢速</b></div>
         中文声线：<select id="zh-select" onchange="testVoice('zh')"></select>
         英文声线：<select id="en-select" onchange="testVoice('en')"></select>
     </div>
@@ -58,57 +57,52 @@
         <div id="word-display">Ready?</div>
         <div id="status-msg" style="text-align:center; font-weight:bold; height:25px; padding: 5px 0;"></div>
 
-        <textarea id="scribble-input" placeholder="请手写..." spellcheck="false"></textarea>
+        <textarea id="scribble-input" placeholder="直接在此手写..." spellcheck="false"></textarea>
         
         <div id="action-btns" style="display:none; width:100%;">
             <button class="btn btn-primary" onclick="autoCheck()">提交批改</button>
             <div style="display:flex; gap:10px;">
-                <button class="btn btn-secondary" onclick="replayAudio()" style="flex:1;">再听一遍</button>
-                <!-- 优化：一键清空全部，方便重写 -->
-                <button class="btn btn-danger" onclick="clearFullInput()" style="flex:1;">清空重写</button>
+                <button class="btn btn-secondary" onclick="replayAudio()" style="flex:1.2;">再听一遍</button>
+                <!-- 优化：改为单字符退格按钮 -->
+                <button class="btn btn-delete" onclick="backspaceOne()" style="flex:0.8;">回删</button>
             </div>
         </div>
 
         <button id="start-btn" class="btn btn-primary" onclick="startSession()">开始今日任务 (5月1日)</button>
     </div>
 
-    <!-- 录入模块 -->
     <div class="card">
         <h4 style="margin:0 0 10px 0">词库批量录入</h4>
-        <textarea id="wordInput" class="admin-input" placeholder="输入词语用逗号隔开..."></textarea>
-        <button class="btn btn-primary" style="height:45px; font-size:0.9rem;" onclick="saveWords()">保存新词到库</button>
+        <textarea id="wordInput" class="admin-input" placeholder="用逗号隔开..."></textarea>
+        <button class="btn btn-primary" style="height:45px; font-size:0.9rem;" onclick="saveWords()">存入本地库</button>
     </div>
 
-    <!-- 错题模块 -->
     <div class="card">
-        <h4 style="margin:0 0 10px 0; color:var(--danger)">重点错题本</h4>
+        <h4 style="margin:0 0 10px 0; color:var(--danger)">即时错题本</h4>
         <div id="error-list"></div>
     </div>
 
     <div class="card">
-        <b id="cal-title">2026年5月进度表</b>
+        <b id="cal-title">2026年5月进度</b>
         <div class="calendar-grid" id="calendar"></div>
     </div>
 </div>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('dict_v2026_Optimized')) || { words: [], history: {}, errors: [], prefZh: '', prefEn: '' };
+    let db = JSON.parse(localStorage.getItem('dict_v2026_Final_Fix')) || { words: [], history: {}, errors: [], prefZh: '', prefEn: '' };
     let task = [], idx = 0;
     const inputArea = document.getElementById('scribble-input');
     const synth = window.speechSynthesis;
 
-    // --- 声音初始化与极慢语速控制 ---
     function initVoices() {
         let voices = synth.getVoices();
         if (voices.length === 0) return;
         const zhSel = document.getElementById('zh-select');
         const enSel = document.getElementById('en-select');
         zhSel.innerHTML = ''; enSel.innerHTML = '';
-
         voices.forEach(v => {
             let opt = document.createElement('option');
-            opt.value = v.name;
-            opt.innerText = v.name;
+            opt.value = v.name; opt.innerText = v.name;
             if (v.lang.includes('zh')) zhSel.appendChild(opt);
             if (v.lang.includes('en')) enSel.appendChild(opt);
         });
@@ -126,15 +120,12 @@
         const voices = synth.getVoices();
         const zhName = document.getElementById('zh-select').value;
         const enName = document.getElementById('en-select').value;
-
         if (word.type === 'zh') {
             u.voice = voices.find(v => v.name === zhName);
-            u.lang = 'zh-CN';
-            u.rate = 0.5; // 优化：语速放慢一倍
+            u.lang = 'zh-CN'; u.rate = 0.5;
         } else {
             u.voice = voices.find(v => v.name === enName);
-            u.lang = 'en-US';
-            u.rate = 0.5; // 优化：语速放慢一倍
+            u.lang = 'en-US'; u.rate = 0.5;
         }
         db.prefZh = zhName; db.prefEn = enName; save();
         synth.speak(u);
@@ -143,27 +134,26 @@
 
     function testVoice(type) {
         synth.cancel();
-        const text = type === 'zh' ? "中文发音测试" : "English Voice Test";
-        const u = new SpeechSynthesisUtterance(text);
-        const name = document.getElementById(type + '-select').value;
-        u.voice = synth.getVoices().find(v => v.name === name);
-        u.rate = 0.5;
-        synth.speak(u);
+        const u = new SpeechSynthesisUtterance(type === 'zh' ? "测试语速" : "Voice Test");
+        u.voice = synth.getVoices().find(v => v.name === document.getElementById(type + '-select').value);
+        u.rate = 0.5; synth.speak(u);
     }
 
-    // --- 输入控制：彻底清除 ---
-    function clearFullInput() {
-        inputArea.value = ""; // 彻底清空
-        inputArea.focus();    // 重新聚焦，iPad会重新弹出随手写
+    // --- 核心优化：单字符退格逻辑 ---
+    function backspaceOne() {
+        const currentVal = inputArea.value;
+        if (currentVal.length > 0) {
+            // 使用 slice 移除最后一个字符
+            inputArea.value = currentVal.slice(0, -1);
+        }
+        inputArea.focus(); 
     }
 
-    // --- 核心业务逻辑 ---
     function autoCheck() {
         const val = inputArea.value.trim().toLowerCase();
         const target = task[idx].text.trim().toLowerCase();
         const msg = document.getElementById('status-msg');
         if (!val) return;
-
         if (val === target) {
             msg.innerText = "✅ 正确！"; msg.style.color = "#34C759";
             handleResult(true);
@@ -179,21 +169,15 @@
             item.level = Math.min((item.level || 0) + 1, 6); 
         } else { 
             item.level = 0; 
-            // 优化：错题收录逻辑强化
-            let errIndex = db.errors.findIndex(e => e.text === task[idx].text);
-            if (errIndex !== -1) {
-                db.errors[errIndex].count++;
-            } else {
-                db.errors.push({text: task[idx].text, count: 1});
-            }
+            let err = db.errors.find(e => e.text === task[idx].text);
+            if (err) err.count++; else db.errors.push({text: task[idx].text, count: 1});
         }
         let next = new Date();
         next.setDate(next.getDate() + (isOk ? [0, 1, 2, 4, 7, 15, 30][item.level] : 1));
         item.nextDate = next.toISOString().split('T')[0];
-        
         idx++;
         save();
-        render(); // 优化：每次操作后立即重新渲染错题本和日历
+        render(); // 即时刷新错题本
         setTimeout(nextWord, 1800);
     }
 
@@ -207,7 +191,7 @@
             else if (w.type === 'en' && ew < 20) { en.push(w); ew += weight; }
         }
         task = [...cn, ...en];
-        if (task.length === 0) { alert("今天没有任务，录入点新词吧！"); return; }
+        if (task.length === 0) { alert("今天没有任务！"); return; }
         idx = 0; 
         document.getElementById('start-btn').style.display = 'none';
         document.getElementById('action-btns').style.display = 'block';
@@ -219,7 +203,7 @@
         if (idx >= task.length) {
             db.history[new Date().toISOString().split('T')[0]] = true;
             save(); render();
-            document.getElementById('word-display').innerText = "🏁 今日达成！";
+            document.getElementById('word-display').innerText = "🏁 今日挑战达成！";
             inputArea.style.display = 'none'; document.getElementById('action-btns').style.display = 'none';
             document.getElementById('start-btn').style.display = 'block';
             return;
@@ -228,11 +212,10 @@
         document.getElementById('status-msg').innerText = "";
         document.getElementById('word-display').innerText = "请听写...";
         
-        // 更新实时分值
-        const curCnWeight = task.slice(0, idx).filter(w => w.type === 'zh').reduce((acc, w) => acc + ((w.text.length > 5) ? 2 : 1), 0);
-        const curEnWeight = task.slice(0, idx).filter(w => w.type === 'en').reduce((acc, w) => acc + (w.text.includes(' ') ? 2 : 1), 0);
-        document.getElementById('cn-stat').innerText = `中文分: ${curCnWeight}/20`;
-        document.getElementById('en-stat').innerText = `英文分: ${curEnWeight}/20`;
+        const curCnW = task.slice(0, idx).filter(w => w.type === 'zh').reduce((a, w) => a + ((w.text.length > 5) ? 2 : 1), 0);
+        const curEnW = task.slice(0, idx).filter(w => w.type === 'en').reduce((a, w) => a + (w.text.includes(' ') ? 2 : 1), 0);
+        document.getElementById('cn-stat').innerText = `中文分: ${curCnW}/20`;
+        document.getElementById('en-stat').innerText = `英文分: ${curEnW}/20`;
         
         replayAudio();
     }
@@ -245,29 +228,26 @@
                 db.words.push({ text: t, level: 0, nextDate: new Date().toISOString().split('T')[0], type: /[a-zA-Z]/.test(t) ? 'en' : 'zh' });
             }
         });
-        save(); alert("存入成功！"); document.getElementById('wordInput').value = ''; render();
+        save(); alert("已录入库！"); document.getElementById('wordInput').value = ''; render();
     }
 
     function render() {
         const g = document.getElementById('calendar'); g.innerHTML = '';
-        const y = 2026, m = 4; // 2026年5月
+        const y = 2026, m = 4;
         const first = new Date(y, m, 1).getDay();
         const last = new Date(y, m + 1, 0).getDate();
-        const todayStr = "2026-05-01"; // 锁定展示日期
-        
         for (let i = 0; i < first; i++) g.appendChild(document.createElement('div'));
         for (let d = 1; d <= last; d++) {
             const ds = `2026-05-${String(d).padStart(2,'0')}`;
             const b = document.createElement('div');
             b.className = 'day-box' + (db.history[ds] ? ' done' : '');
-            if(ds === todayStr) b.classList.add('today');
+            if(ds === "2026-05-01") b.classList.add('today');
             b.innerText = d; g.appendChild(b);
         }
-        // 错题榜：按错误次数降序排列
         document.getElementById('error-list').innerHTML = db.errors.sort((a,b)=>b.count-a.count).slice(0,8).map(e => `<div class="error-item"><span>${e.text}</span><span style="font-weight:bold;color:var(--danger)">${e.count}次错</span></div>`).join('');
     }
 
-    function save() { localStorage.setItem('dict_v2026_Optimized', JSON.stringify(db)); }
+    function save() { localStorage.setItem('dict_v2026_Final_Fix', JSON.stringify(db)); }
     render();
 </script>
 </body>
