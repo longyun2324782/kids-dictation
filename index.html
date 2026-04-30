@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>艾宾浩斯默写助手</title>
+    <style>
+        :root { --primary: #007AFF; --success: #34c759; --error: #ff3b30; }
+        body { font-family: system-ui, -apple-system; margin: 0; background: #f4f4f9; color: #333; }
+        .container { padding: 20px; max-width: 600px; margin: auto; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h2 { margin-top: 0; font-size: 1.2rem; border-left: 4px solid var(--primary); padding-left: 10px; }
+        textarea { width: 100%; height: 80px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; box-sizing: border-box; }
+        canvas { border: 2px solid #eee; background: #fff; touch-action: none; width: 100%; height: 300px; border-radius: 10px; }
+        .btn { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; width: 100%; margin: 5px 0; }
+        .btn-check { background: var(--success); }
+        .btn-wrong { background: var(--error); }
+        .stats { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 10px; }
+        .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .day { font-size: 10px; height: 35px; border-radius: 4px; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; background: white; }
+        .day.active { background: #e3f2fd; border-color: var(--primary); }
+        .day.done { background: var(--success); color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 1. 任务进度 -->
+    <div class="card">
+        <h2>今日任务进度</h2>
+        <div class="stats">
+            <span>中文: <b id="cn-count">0/20</b></span>
+            <span>英文: <b id="en-count">0/20</b></span>
+        </div>
+        <div id="word-display" style="font-size: 2rem; text-align: center; margin: 20px 0; min-height: 50px; font-weight: bold;">
+            请点击“开始默写”
+        </div>
+        <canvas id="canvas"></canvas>
+        <button class="btn" onclick="clearCanvas()">清空画板</button>
+        <button class="btn" style="background:#8e8e93" onclick="toggleAnswer()">查看/隐藏标准答案</button>
+        <div id="answer-text" style="display:none; text-align:center; font-size:1.5rem; color:var(--success); margin:10px;"></div>
+        
+        <div id="action-btns" style="display:none; display: flex; gap: 10px;">
+            <button class="btn btn-wrong" onclick="submitResult(false)">打叉 (错了)</button>
+            <button class="btn btn-check" onclick="submitResult(true)">打钩 (对了)</button>
+        </div>
+        <button id="start-btn" class="btn" onclick="initTodayTask()">开始今日默写</button>
+    </div>
+
+    <!-- 2. 批量录入 -->
+    <div class="card">
+        <h2>新词库录入 (逗号隔开)</h2>
+        <textarea id="rawInput" placeholder="输入新词条，例如：学习,苹果,Apple,Science..."></textarea>
+        <button class="btn" onclick="importWords()">加入词库</button>
+    </div>
+
+    <!-- 3. 复习日历 -->
+    <div class="card">
+        <h2>任务日历 (最近30天)</h2>
+        <div class="calendar" id="calendar"></div>
+    </div>
+</div>
+
+<script>
+    let db = JSON.parse(localStorage.getItem('studyDB') || '{"words":[], "history":{}}');
+    let todayTask = [];
+    let currentIndex = 0;
+    const Intervals = [0, 1, 2, 4, 7, 15, 30]; // 艾宾浩斯周期
+
+    // 画板逻辑
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = 300;
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    const startDraw = (e) => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+    const moveDraw = (e) => { if(!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); };
+    canvas.addEventListener('touchstart', startDraw);
+    canvas.addEventListener('touchmove', moveDraw);
+    canvas.addEventListener('touchend', () => drawing = false);
+
+    function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+    // 录入逻辑
+    function importWords() {
+        const input = document.getElementById('rawInput').value;
+        if(!input) return;
+        const newWords = input.split(/[,，]/).map(s => s.trim()).filter(s => s);
+        
+        newWords.forEach(text => {
+            if(!db.words.find(w => w.text === text)) {
+                db.words.push({
+                    text: text,
+                    type: /[a-zA-Z]/.test(text) ? 'en' : 'cn',
+                    level: 0, // 对应Intervals的索引
+                    nextDate: new Date().toISOString().split('T')[0]
+                });
+            }
+        });
+        saveDB();
+        alert('录入成功！');
+    }
+
+    // 筛选今日任务
+    function initTodayTask() {
+        const today = new Date().toISOString().split('T')[0];
+        // 筛选：到了复习时间的旧词 + 错词
+        let pending = db.words.filter(w => w.nextDate <= today);
+        
+        // 分离中英文，各取前20个（按艾宾浩斯逻辑，复习词优先）
+        let cnTasks = pending.filter(w => w.type === 'cn').slice(0, 20);
+        let enTasks = pending.filter(w => w.type === 'en').slice(0, 20);
+        
+        todayTask = [...cnTasks, ...enTasks];
+        if(todayTask.length === 0) {
+            alert('今天没有任务哦！可以录入新词。');
+            return;
+        }
+        
+        currentIndex = 0;
+        document.getElementById('start-btn').style.display = 'none';
+        document.getElementById('action-btns').style.display = 'flex';
+        showWord();
+    }
+
+    function showWord() {
+        if(currentIndex >= todayTask.length) {
+            document.getElementById('word-display').innerText = "🎉 今日达成！";
+            document.getElementById('action-btns').style.display = 'none';
+            recordHistory();
+            return;
+        }
+        const word = todayTask[currentIndex];
+        document.getElementById('word-display').innerText = "默写这个词 (听音或意会)";
+        document.getElementById('answer-text').innerText = word.text;
+        document.getElementById('answer-text').style.display = 'none';
+        
+        // 自动读音 (iPad支持)
+        const utter = new SpeechSynthesisUtterance(word.text);
+        utter.lang = word.type === 'en' ? 'en-US' : 'zh-CN';
+        window.speechSynthesis.speak(utter);
+        
+        updateProgress();
+        clearCanvas();
+    }
+
+    function toggleAnswer() {
+        const ans = document.getElementById('answer-text');
+        ans.style.display = ans.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function submitResult(isCorrect) {
+        const word = todayTask[currentIndex];
+        const target = db.words.find(w => w.text === word.text);
+        
+        if(isCorrect) {
+            target.level = Math.min(target.level + 1, Intervals.length - 1);
+        } else {
+            target.level = 0; // 错了重来
+        }
+        
+        // 计算下一次复习日期
+        let next = new Date();
+        next.setDate(next.getDate() + Intervals[target.level]);
+        if(target.level === 0) next.setDate(next.getDate() + 1); // 错了明天再练
+        target.nextDate = next.toISOString().split('T')[0];
+        
+        saveDB();
+        currentIndex++;
+        showWord();
+    }
+
+    function updateProgress() {
+        const cns = todayTask.filter(w => w.type === 'cn').length;
+        const ens = todayTask.filter(w => w.type === 'en').length;
+        document.getElementById('cn-count').innerText = `${Math.min(currentIndex, 20)}/${cns}`;
+        document.getElementById('en-count').innerText = `${Math.max(0, currentIndex-20)}/${ens}`;
+    }
+
+    function saveDB() { localStorage.setItem('studyDB', JSON.stringify(db)); }
+
+    function recordHistory() {
+        const today = new Date().toISOString().split('T')[0];
+        db.history[today] = true;
+        saveDB();
+        renderCalendar();
+    }
+
+    function renderCalendar() {
+        const container = document.getElementById('calendar');
+        container.innerHTML = '';
+        for(let i=29; i>=0; i--) {
+            let d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const el = document.createElement('div');
+            el.className = 'day' + (db.history[dateStr] ? ' done' : '');
+            if(i === 0) el.classList.add('active');
+            el.innerText = d.getDate();
+            container.appendChild(el);
+        }
+    }
+
+    renderCalendar();
+</script>
+
+</body>
+</html>
