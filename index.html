@@ -3,321 +3,291 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>全自动智能默写 - 2026 稳定版</title>
+    <title>全自动 AI 默写 (坐标压缩版)</title>
     <style>
         :root { --primary: #007AFF; --bg: #F2F2F7; --card: #FFFFFF; --danger: #FF3B30; --success: #34C759; }
         body { font-family: -apple-system; margin: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; -webkit-user-select: none; }
         .header { width: 100%; padding: 40px 20px 20px; background: var(--card); border-bottom: 1px solid #D1D1D6; text-align: center; }
         .main-container { width: 95%; max-width: 800px; margin: 20px auto; padding-bottom: 50px; }
-        .card { background: var(--card); border-radius: 20px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        #word-display { font-size: 2.5rem; font-weight: 700; margin-bottom: 10px; color: var(--primary); min-height: 60px; display: flex; align-items: center; justify-content: center; }
-        .stats-bar { display: flex; justify-content: space-around; font-size: 0.8rem; color: #666; margin-bottom: 15px; }
-        .canvas-wrapper { position: relative; width: 100%; height: 45vh; background: #fff; border: 2px solid #E5E5EA; border-radius: 16px; overflow: hidden; }
-        canvas { width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
-        .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
-        .btn { height: 60px; border-radius: 14px; border: none; font-size: 1.1rem; font-weight: 600; cursor: pointer; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-secondary { background: #E5E5EA; color: #3A3A3C; }
-        #status-msg { text-align: center; margin-top: 10px; font-weight: bold; min-height: 30px; }
-        /* 日历 */
-        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-        .weekday { text-align: center; font-size: 0.7rem; color: #8E8E93; }
-        .day-box { aspect-ratio: 1; background: #F2F2F7; border-radius: 8px; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; }
-        .day-box.completed { background: var(--success); color: white; }
-        .day-box.today { border: 2px solid var(--primary); }
-        textarea { width: 100%; height: 80px; border: 1px solid #D1D1D6; border-radius: 12px; padding: 12px; font-size: 1rem; box-sizing: border-box; }
-        .error-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #F2F2F7; }
+        .card { background: var(--card); border-radius: 24px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        #word-display { font-size: 2.5rem; font-weight: 700; margin: 10px 0; color: var(--primary); text-align: center; }
+        .canvas-wrapper { width: 100%; height: 42vh; background: #fff; border: 2px solid #E5E5EA; border-radius: 20px; overflow: hidden; position: relative; }
+        canvas { width: 100%; height: 100%; touch-action: none; }
+        .btn { height: 60px; border-radius: 16px; border: none; font-size: 1.2rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; width: 100%; }
+        .btn-secondary { background: #E5E5EA; color: #3A3A3C; flex: 1; }
+        #status-msg { text-align: center; margin: 10px 0; font-weight: bold; min-height: 40px; border-radius: 10px; padding: 5px; }
+        .stats { display: flex; justify-content: space-around; font-size: 0.8rem; color: #8E8E93; margin-bottom: 15px; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 10px; }
+        .day-box { aspect-ratio: 1; background: #F2F2F7; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+        .day-box.done { background: var(--success); color: white; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="margin:0; font-size: 1.3rem;">智能默写助手 (AI 驱动)</h1>
+    <h1 style="margin:0; font-size: 1.4rem;">全自动智能默写训练</h1>
 </div>
 
 <div class="main-container">
     <div class="card">
-        <div class="stats-bar">
-            <span id="cn-stat">中文: 0/20</span>
-            <span id="en-stat">英文: 0/20</span>
+        <div class="stats">
+            <span id="cn-progress">中文: 0/20</span>
+            <span id="en-progress">英文: 0/20</span>
         </div>
         <div id="word-display">等待开始</div>
-        <div id="status-msg"></div>
+        <div id="status-msg">点击下方按钮开始任务</div>
+        
         <div class="canvas-wrapper">
             <canvas id="writeCanvas"></canvas>
         </div>
-        <div class="button-group">
-            <button class="btn btn-secondary" onclick="clearBoard()">清空</button>
-            <button class="btn btn-primary" id="submit-btn" onclick="recognizeAndCheck()" style="display:none;">提交批改</button>
-            <button class="btn btn-primary" id="start-btn" onclick="startSession()" style="grid-column: span 2;">开始今日默写任务</button>
+
+        <div id="control-btns" style="display:none; gap:10px; margin-top:20px;">
+            <button class="btn btn-secondary" onclick="clearBoard()">重写</button>
+            <button class="btn btn-primary" style="flex:2" onclick="startAI()">提交批改</button>
         </div>
+        <button id="start-btn" class="btn btn-primary" onclick="startSession()" style="margin-top:20px;">开始今日任务 (20中+20英)</button>
     </div>
 
     <div class="card">
         <h3>批量词库录入</h3>
-        <textarea id="wordInput" placeholder="输入词语，逗号隔开..."></textarea>
-        <button class="btn btn-primary" onclick="saveToLibrary()" style="width:100%; margin-top:10px; height:50px; border-radius:12px;">保存词库</button>
+        <textarea id="wordInput" style="width:100%; height:80px; border-radius:12px; padding:10px; border:1px solid #ddd;" placeholder="词语用逗号隔开..."></textarea>
+        <button class="btn btn-primary" onclick="saveWords()" style="margin-top:10px; height:50px;">保存到词库</button>
     </div>
 
     <div class="card">
-        <h3 style="color: var(--danger);">错题本</h3>
-        <div id="error-list"></div>
+        <h3 style="color:var(--danger)">错题本</h3>
+        <div id="error-log" style="font-size:0.9rem;"></div>
     </div>
 
     <div class="card">
-        <div class="calendar-header">
-            <button onclick="changeMonth(-1)" style="border:none;background:none;color:var(--primary);font-size:1.5rem;">❮</button>
-            <b id="calendar-month">2026年5月</b>
-            <button onclick="changeMonth(1)" style="border:none;background:none;color:var(--primary);font-size:1.5rem;">❯</button>
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <button onclick="moveMonth(-1)" style="border:none; background:none; color:var(--primary)">上个月</button>
+            <b id="cal-title">2026年5月</b>
+            <button onclick="moveMonth(1)" style="border:none; background:none; color:var(--primary)">下个月</button>
         </div>
-        <div class="calendar-grid" id="calendar-grid"></div>
+        <div class="calendar-grid" id="calendar"></div>
     </div>
 </div>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('dictation_ai_v5_db')) || { words: [], history: {}, errorLog: [] };
-    let currentTask = [];
-    let currentIdx = 0;
-    let strokes = [];
-    let currentStroke = [];
+    let db = JSON.parse(localStorage.getItem('dictation_v6_db')) || { words: [], history: {}, errorLog: [] };
+    let currentTask = [], currentIdx = 0, strokes = [], currentStroke = [];
     let viewDate = new Date(2026, 4, 1);
 
     const canvas = document.getElementById('writeCanvas');
     const ctx = canvas.getContext('2d');
     
     function initCanvas() {
-        const ratio = window.devicePixelRatio || 1;
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        ctx.scale(ratio, ratio);
+        const r = window.devicePixelRatio || 1;
+        canvas.width = canvas.offsetWidth * r;
+        canvas.height = canvas.offsetHeight * r;
+        ctx.scale(r, r);
         ctx.lineWidth = 6;
         ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
         ctx.strokeStyle = '#1C1C1E';
     }
     window.addEventListener('resize', initCanvas);
     setTimeout(initCanvas, 100);
 
-    function getXY(e) {
+    // 手写监听逻辑：加入点抽样以减少数据量
+    canvas.addEventListener('touchstart', e => {
         const rect = canvas.getBoundingClientRect();
-        const t = e.touches ? e.touches[0] : e;
-        return { x: t.clientX - rect.left, y: t.clientY - rect.top };
-    }
-
-    canvas.addEventListener('touchstart', (e) => {
-        const p = getXY(e);
+        const p = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
         ctx.beginPath(); ctx.moveTo(p.x, p.y);
         currentStroke = [Math.round(p.x), Math.round(p.y)];
         e.preventDefault();
     });
 
-    canvas.addEventListener('touchmove', (e) => {
-        const p = getXY(e);
+    canvas.addEventListener('touchmove', e => {
+        const rect = canvas.getBoundingClientRect();
+        const p = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
         ctx.lineTo(p.x, p.y); ctx.stroke();
-        currentStroke.push(Math.round(p.x), Math.round(p.y));
+        // 每三个点记录一个，大幅压缩体积
+        if (currentStroke.length % 6 === 0) {
+            currentStroke.push(Math.round(p.x), Math.round(p.y));
+        }
         e.preventDefault();
     });
 
     canvas.addEventListener('touchend', () => {
-        if(currentStroke.length > 2) {
-            strokes.push(currentStroke);
-        }
+        if (currentStroke.length > 2) strokes.push(currentStroke);
     });
 
     function clearBoard() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         strokes = [];
-        document.getElementById('status-msg').innerText = "";
+        document.getElementById('status-msg').innerText = "请书写";
+        document.getElementById('status-msg').style.background = "none";
     }
 
-    // 核心改进：使用 JSONP 方式绕过跨域拦截
-    function recognizeAndCheck() {
+    // 核心AI批改逻辑：JSONP + 备选域名 + 轨迹压缩
+    function startAI() {
         if (strokes.length === 0) return;
         const msg = document.getElementById('status-msg');
-        msg.style.color = "#666";
-        msg.innerText = "🔍 AI 正在批改...";
+        msg.innerText = "🔍 正在自动批改...";
+        msg.style.background = "#eee";
 
         const word = currentTask[currentIdx];
         const lang = word.type === 'zh' ? 'zh-Hans' : 'en';
 
-        // 构造 Google Input API 所需的特殊格式
-        const ink = JSON.stringify(strokes.map(s => {
+        // 格式化轨迹
+        const ink = strokes.map(s => {
             const x = [], y = [];
-            for(let i=0; i<s.length; i+=2) { x.push(s[i]); y.push(s[i+1]); }
+            for (let i = 0; i < s.length; i += 2) { x.push(s[i]); y.push(s[i+1]); }
             return [x, y];
-        }));
+        });
 
-        // 创建唯一的全局回调函数名
-        const callbackName = 'google_callback_' + Math.floor(Math.random() * 1000000);
-        window[callbackName] = function(data) {
+        // 随机选择备用接口
+        const apiBases = [
+            'https://www.google.com.tw/inputtools/request',
+            'https://www.google.com/inputtools/request',
+            'https://inputtools.google.com/request'
+        ];
+        const apiBase = apiBases[Math.floor(Math.random() * apiBases.length)];
+        
+        const cbName = 'ai_cb_' + Date.now();
+        window[cbName] = (data) => {
             if (data && data[0] === "SUCCESS") {
-                const candidates = data[1][0][1];
-                const answer = word.text.trim().toLowerCase();
-                const isCorrect = candidates.some(c => c.toLowerCase() === answer);
-                handleResult(isCorrect, candidates[0]);
+                const res = data[1][0][1];
+                const target = word.text.trim().toLowerCase();
+                const isOk = res.some(c => c.toLowerCase() === target);
+                finalizeJudge(isOk, res[0]);
             }
-            delete window[callbackName];
-            document.body.removeChild(script);
+            cleanup();
         };
 
-        const url = `https://www.google.com/inputtools/request?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8&lang=${lang}&ink=${encodeURIComponent(ink)}&cb=${callbackName}`;
-        
+        const cleanup = () => {
+            delete window[cbName];
+            const s = document.getElementById(cbName);
+            if (s) s.remove();
+        };
+
         const script = document.createElement('script');
-        script.src = url;
+        script.id = cbName;
+        script.src = `${apiBase}?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8&lang=${lang}&ink=${encodeURIComponent(JSON.stringify(ink))}&cb=${cbName}`;
         script.onerror = () => {
-            msg.innerText = "⚠️ 识别引擎连接失败，请检查网络";
+            msg.innerText = "网络异常，正在重试...";
+            setTimeout(startAI, 1500);
+            cleanup();
         };
         document.body.appendChild(script);
+
+        // 5秒超时重连
+        setTimeout(() => { if (window[cbName]) { cleanup(); startAI(); } }, 5000);
     }
 
-    function handleResult(isCorrect, bestCandidate) {
+    function finalizeJudge(isCorrect, bestGuess) {
         const msg = document.getElementById('status-msg');
         if (isCorrect) {
-            msg.style.color = "var(--success)";
-            msg.innerText = "✅ 系统批改：正确";
-            setTimeout(() => judge(true), 800);
+            msg.innerText = "✅ 批改结果：正确";
+            msg.style.background = "#d4edda";
+            setTimeout(() => applyResult(true), 800);
         } else {
-            msg.style.color = "var(--danger)";
-            msg.innerText = `❌ 系统批改：错误 (识为:${bestCandidate || '?'})`;
-            setTimeout(() => judge(false), 1500);
+            msg.innerText = `❌ 错误 (系统识别为: ${bestGuess || '?'})`;
+            msg.style.background = "#f8d7da";
+            setTimeout(() => applyResult(false), 2000);
         }
     }
 
-    function judge(isCorrect) {
+    function applyResult(isCorrect) {
         const word = currentTask[currentIdx];
-        const original = db.words.find(w => w.text === word.text);
-        const intervals = [0, 1, 2, 4, 7, 15, 30];
+        const target = db.words.find(w => w.text === word.text);
+        const steps = [0, 1, 2, 4, 7, 15, 30];
 
         if (isCorrect) {
-            original.level = Math.min(original.level + 1, 6);
+            target.level = Math.min(target.level + 1, 6);
         } else {
-            original.level = 0;
-            recordError(word.text);
+            target.level = 0;
+            const err = db.errorLog.find(e => e.text === word.text);
+            if (err) err.count++; else db.errorLog.push({ text: word.text, count: 1 });
         }
 
-        let next = new Date();
-        next.setDate(next.getDate() + (isCorrect ? intervals[original.level] : 1));
-        original.nextDate = next.toISOString().split('T')[0];
+        let n = new Date();
+        n.setDate(n.getDate() + (isCorrect ? steps[target.level] : 1));
+        target.nextDate = n.toISOString().split('T')[0];
 
-        save();
-        currentIdx++;
-        updateStats();
-        nextWord();
-    }
-
-    function recordError(text) {
-        let entry = db.errorLog.find(e => e.text === text);
-        if (entry) { entry.count++; } else { db.errorLog.push({ text: text, count: 1 }); }
-        save();
-        renderErrors();
-    }
-
-    function renderErrors() {
-        const list = document.getElementById('error-list');
-        list.innerHTML = '';
-        db.errorLog.sort((a,b) => b.count - a.count).slice(0, 8).forEach(e => {
-            const div = document.createElement('div');
-            div.className = 'error-item';
-            div.innerHTML = `<span>${e.text}</span><span style="color:var(--danger)">${e.count}次错</span>`;
-            list.appendChild(div);
-        });
+        save(); currentIdx++; updateUI(); nextWord();
     }
 
     function startSession() {
         const today = new Date().toISOString().split('T')[0];
-        let pending = db.words.filter(w => w.nextDate <= today);
-        let cnTask = [], enTask = [], cnWeight = 0, enWeight = 0;
-
-        for (let w of pending) {
+        let pool = db.words.filter(w => w.nextDate <= today);
+        let cn = [], en = [], cw = 0, ew = 0;
+        
+        for (let w of pool) {
             let weight = (w.type === 'zh' && w.text.length > 5) || (w.type === 'en' && w.text.includes(' ')) ? 2 : 1;
-            if (w.type === 'zh' && cnWeight < 20) { cnTask.push(w); cnWeight += weight; }
-            else if (w.type === 'en' && enWeight < 20) { enTask.push(w); enWeight += weight; }
-            if (cnWeight >= 20 && enWeight >= 20) break;
+            if (w.type === 'zh' && cw < 20) { cn.push(w); cw += weight; }
+            else if (w.type === 'en' && ew < 20) { en.push(w); ew += weight; }
+            if (cw >= 20 && ew >= 20) break;
         }
 
-        currentTask = [...cnTask, ...enTask];
-        if (currentTask.length === 0) { alert('今日复习已全部完成！'); return; }
+        currentTask = [...cn, ...en];
+        if (currentTask.length === 0) { alert('今日已无任务'); return; }
+        
         currentIdx = 0;
         document.getElementById('start-btn').style.display = 'none';
-        document.getElementById('submit-btn').style.display = 'block';
-        updateStats();
-        nextWord();
-    }
-
-    function updateStats() {
-        const cnDone = currentTask.slice(0, currentIdx).filter(w => w.type === 'zh').length;
-        const enDone = currentTask.slice(0, currentIdx).filter(w => w.type === 'en').length;
-        const cnTotal = currentTask.filter(w => w.type === 'zh').length;
-        const enTotal = currentTask.filter(w => w.type === 'en').length;
-        document.getElementById('cn-stat').innerText = `中文: ${cnDone}/${cnTotal}`;
-        document.getElementById('en-stat').innerText = `英文: ${enDone}/${enTotal}`;
+        document.getElementById('control-btns').style.display = 'flex';
+        updateUI(); nextWord();
     }
 
     function nextWord() {
-        if (currentIdx >= currentTask.length) { finishTask(); return; }
+        if (currentIdx >= currentTask.length) {
+            db.history[new Date().toISOString().split('T')[0]] = true;
+            save(); renderCalendar();
+            document.getElementById('word-display').innerText = "🏁 完成！";
+            document.getElementById('control-btns').style.display = 'none';
+            document.getElementById('start-btn').style.display = 'block';
+            return;
+        }
         clearBoard();
         const word = currentTask[currentIdx];
-        document.getElementById('word-display').innerText = "听音默写..."; 
-        const utter = new SpeechSynthesisUtterance(word.text);
-        utter.lang = word.type === 'en' ? 'en-US' : 'zh-CN';
-        window.speechSynthesis.speak(utter);
+        document.getElementById('word-display').innerText = "请听写...";
+        const u = new SpeechSynthesisUtterance(word.text);
+        u.lang = word.type === 'zh' ? 'zh-CN' : 'en-US';
+        window.speechSynthesis.speak(u);
     }
 
-    function finishTask() {
-        const today = new Date().toISOString().split('T')[0];
-        db.history[today] = true;
-        save();
-        document.getElementById('word-display').innerText = "🎉 任务达成！";
-        document.getElementById('submit-btn').style.display = 'none';
-        document.getElementById('start-btn').style.display = 'block';
-        renderCalendar();
-    }
-
-    function saveToLibrary() {
-        const str = document.getElementById('wordInput').value;
-        if (!str) return;
-        const list = str.split(/[,，]/).map(v => v.trim()).filter(v => v);
-        list.forEach(text => {
-            if (!db.words.find(w => w.text === text)) {
-                db.words.push({ text: text, level: 0, nextDate: new Date().toISOString().split('T')[0], type: /[a-zA-Z]/.test(text) ? 'en' : 'zh' });
+    function saveWords() {
+        const v = document.getElementById('wordInput').value;
+        if (!v) return;
+        v.split(/[,，]/).map(t => t.trim()).filter(t => t).forEach(t => {
+            if (!db.words.find(w => w.text === t)) {
+                db.words.push({ text: t, level: 0, nextDate: new Date().toISOString().split('T')[0], type: /[a-zA-Z]/.test(t) ? 'en' : 'zh' });
             }
         });
-        save();
-        alert('词库同步成功！');
-        document.getElementById('wordInput').value = '';
+        save(); alert('已保存'); document.getElementById('wordInput').value = '';
     }
 
     function renderCalendar() {
-        const grid = document.getElementById('calendar-grid');
-        const title = document.getElementById('calendar-month');
-        grid.innerHTML = '';
-        const year = viewDate.getFullYear();
-        const month = viewDate.getMonth();
-        title.innerText = `${year}年${month + 1}月`;
-        const weeks = ['日', '一', '二', '三', '四', '五', '六'];
-        weeks.forEach(w => {
-            const el = document.createElement('div'); el.className = 'weekday'; el.innerText = w; grid.appendChild(el);
-        });
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const todayStr = new Date().toISOString().split('T')[0];
-        for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const el = document.createElement('div');
-            el.className = 'day-box' + (db.history[dateStr] ? ' completed' : '');
-            if (dateStr === todayStr) el.classList.add('today');
-            el.innerText = day;
-            grid.appendChild(el);
+        const g = document.getElementById('calendar'); g.innerHTML = '';
+        const y = viewDate.getFullYear(), m = viewDate.getMonth();
+        document.getElementById('cal-title').innerText = `${y}年${m+1}月`;
+        const first = new Date(y, m, 1).getDay();
+        const last = new Date(y, m + 1, 0).getDate();
+        for (let i = 0; i < first; i++) g.appendChild(document.createElement('div'));
+        for (let d = 1; d <= last; d++) {
+            const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const b = document.createElement('div');
+            b.className = 'day-box' + (db.history[ds] ? ' done' : '');
+            b.innerText = d; g.appendChild(b);
         }
     }
 
-    function changeMonth(s) { viewDate.setMonth(viewDate.getMonth() + s); renderCalendar(); }
-    function save() { localStorage.setItem('dictation_ai_v5_db', JSON.stringify(db)); }
+    function updateUI() {
+        const cnd = currentTask.slice(0, currentIdx).filter(w => w.type === 'zh').length;
+        const end = currentTask.slice(0, currentIdx).filter(w => w.type === 'en').length;
+        document.getElementById('cn-progress').innerText = `中文: ${cnd}/${currentTask.filter(w=>w.type==='zh').length}`;
+        document.getElementById('en-progress').innerText = `英文: ${end}/${currentTask.filter(w=>w.type==='en').length}`;
+        const errList = document.getElementById('error-log');
+        errList.innerHTML = db.errorLog.sort((a,b)=>b.count-a.count).slice(0,5).map(e => `<div>${e.text} (${e.count}次)</div>`).join('');
+    }
+
+    function moveMonth(s) { viewDate.setMonth(viewDate.getMonth() + s); renderCalendar(); }
+    function save() { localStorage.setItem('dictation_v6_db', JSON.stringify(db)); }
 
     renderCalendar();
-    renderErrors();
+    updateUI();
 </script>
 </body>
 </html>
