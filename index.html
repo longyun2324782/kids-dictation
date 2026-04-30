@@ -3,176 +3,201 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>2026 智能默写 - 原生适配版</title>
+    <title>2026 智能默写 - 终极声线自选版</title>
     <style>
         :root { --primary: #007AFF; --success: #34C759; --danger: #FF3B30; --bg: #F2F2F7; }
         body { font-family: -apple-system, sans-serif; margin: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; }
-        .main-container { width: 94%; max-width: 800px; margin: 20px auto; padding-bottom: 50px; }
-        .card { background: #fff; border-radius: 20px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .main-container { width: 94%; max-width: 600px; margin: 10px auto; padding-bottom: 60px; }
+        .card { background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; }
         
-        /* 进度显示 */
-        .stats { display: flex; justify-content: space-around; font-size: 0.9rem; color: #888; margin-bottom: 20px; font-weight: 600; }
-        #word-display { font-size: 2.5rem; font-weight: 800; color: var(--primary); text-align: center; min-height: 60px; margin-bottom: 10px; }
+        /* 声音配置区 */
+        .voice-config { background: #E5E5EA; border-radius: 12px; padding: 12px; margin-bottom: 15px; font-size: 0.8rem; }
+        .voice-config select { width: 100%; margin-top: 5px; height: 30px; border-radius: 5px; border: 1px solid #ccc; }
         
-        /* 核心写字区：巨大的输入框，专为 Apple Pencil 设计 */
+        .stats { display: flex; justify-content: space-around; font-size: 0.85rem; color: #666; margin-bottom: 10px; font-weight: bold; }
+        #word-display { font-size: 2.2rem; font-weight: 800; color: var(--primary); text-align: center; min-height: 50px; }
+        
         #scribble-input { 
-            width: 100%; height: 35vh; font-size: 2.2rem; text-align: center;
+            width: 100%; height: 30vh; font-size: 1.8rem; text-align: center;
             border: 2px dashed #D1D1D6; border-radius: 20px; outline: none;
-            background: #FAFAFA; display: none; padding: 20px; box-sizing: border-box;
-            transition: all 0.3s;
+            background: #FAFAFA; display: none; padding: 15px; box-sizing: border-box;
         }
-        #scribble-input:focus { border: 2px solid var(--primary); background: #fff; box-shadow: 0 0 15px rgba(0,122,255,0.1); }
         
-        .btn { height: 60px; border-radius: 15px; border: none; font-size: 1.2rem; font-weight: 700; cursor: pointer; width: 100%; transition: 0.2s; }
-        .btn-primary { background: var(--primary); color: #fff; margin-top: 15px; }
-        .btn:active { opacity: 0.7; transform: scale(0.98); }
+        .btn { height: 60px; border-radius: 15px; border: none; font-size: 1.1rem; font-weight: 700; cursor: pointer; width: 100%; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: #fff; margin-top: 10px; }
+        .btn-secondary { background: #E5E5EA; color: #3A3A3C; margin-top: 8px; }
 
-        #status-msg { text-align: center; margin-top: 15px; font-weight: bold; min-height: 35px; font-size: 1.2rem; }
-
-        /* 2026年5月日历 */
-        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-        .day-box { aspect-ratio: 1; background: #eee; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 500; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 10px; }
+        .day-box { aspect-ratio: 1; background: #eee; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
         .day-box.done { background: var(--success); color: #fff; }
         .day-box.today { border: 2px solid var(--primary); }
-        
-        textarea { width: 100%; height: 80px; border: 1px solid #ddd; border-radius: 12px; padding: 12px; font-size: 1rem; box-sizing: border-box; margin-top: 10px; }
-        .error-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; font-size: 1rem; }
+
+        textarea.admin-input { width: 100%; height: 60px; border: 1px solid #ddd; border-radius: 12px; padding: 10px; box-sizing: border-box; }
+        .error-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
 <div class="main-container">
+    <div class="card voice-config">
+        <div><b>第一步：检测并锁定好听的声音</b></div>
+        中文声线：<select id="zh-select"><option>正在加载声线列表...</option></select>
+        英文声线：<select id="en-select"><option>正在加载声线列表...</option></select>
+        <div style="color:#8e8e93; font-size: 0.7rem; margin-top: 5px;">* 请选带“Premium”或“Ting-Ting/Samantha”的选项。</div>
+    </div>
+    
     <div class="card">
         <div class="stats">
-            <span id="cn-progress">中文任务: 0/20分</span>
-            <span id="en-progress">英文任务: 0/20分</span>
+            <span id="cn-stat">中文: 0/20分</span>
+            <span id="en-stat">英文: 0/20分</span>
         </div>
-        <div id="word-display">准备挑战</div>
-        <div id="status-msg"></div>
+        <div id="word-display">Ready?</div>
+        <div id="status-msg" style="text-align:center; font-weight:bold; height:20px;"></div>
 
-        <!-- 核心：孩子用 Apple Pencil 直接在这里写，iPad 自动转文字 -->
-        <textarea id="scribble-input" placeholder="请在此处手写单词或句子..." spellcheck="false"></textarea>
+        <textarea id="scribble-input" placeholder="请在此手写..." spellcheck="false"></textarea>
         
-        <button id="submit-btn" class="btn btn-primary" onclick="autoCheck()" style="display:none;">提交批改</button>
-        <button id="start-btn" class="btn btn-primary" onclick="startSession()">开始今日任务 (20中+20英)</button>
+        <div id="action-btns" style="display:none; width:100%;">
+            <button class="btn btn-primary" onclick="autoCheck()">提交批改</button>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-secondary" onclick="replayAudio()" style="flex:1;">再听一遍</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('scribble-input').value='';document.getElementById('scribble-input').focus();" style="flex:1;">擦除</button>
+            </div>
+        </div>
+
+        <button id="start-btn" class="btn btn-primary" onclick="startSession()">开始今日任务</button>
     </div>
 
+    <!-- 录入模块 -->
     <div class="card">
-        <h4 style="margin:0">批量词库导入</h4>
-        <textarea id="wordInput" placeholder="输入内容用逗号隔开，长句自动计2分..."></textarea>
-        <button class="btn btn-primary" style="height:45px; font-size:1rem;" onclick="saveWords()">存入本地词库</button>
+        <h4 style="margin:0 0 10px 0">词库批量录入</h4>
+        <textarea id="wordInput" class="admin-input" placeholder="输入词语用逗号隔开..."></textarea>
+        <button class="btn btn-primary" style="height:40px; font-size:0.9rem;" onclick="saveWords()">存入本地库</button>
     </div>
 
+    <!-- 错题模块 -->
     <div class="card">
-        <h4 style="margin:0; color:var(--danger)">错题集 (本地记录)</h4>
+        <h4 style="margin:0 0 10px 0; color:var(--danger)">错题本</h4>
         <div id="error-list"></div>
     </div>
 
     <div class="card">
-        <div class="calendar-header">
-            <span onclick="moveMonth(-1)" style="color:var(--primary); cursor:pointer;">❮</span>
-            <b id="cal-title" style="font-size:1.2rem;">2026年5月</b>
-            <span onclick="moveMonth(1)" style="color:var(--primary); cursor:pointer;">❯</span>
-        </div>
+        <b id="cal-title">2026年5月进度</b>
         <div class="calendar-grid" id="calendar"></div>
     </div>
 </div>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('dict_v2026_final')) || { words: [], history: {}, errors: [] };
+    let db = JSON.parse(localStorage.getItem('dict_v2026_final_real')) || { words: [], history: {}, errors: [], prefZh: '', prefEn: '' };
     let task = [], idx = 0;
-    let viewDate = new Date(2026, 4, 1);
     const inputArea = document.getElementById('scribble-input');
+    const synth = window.speechSynthesis;
 
-    // 核心自动批改：纯本地对比，100% 准确，不卡顿
+    // --- 声音核心逻辑：手动选择 + 强制刷新 ---
+    function initVoices() {
+        let voices = synth.getVoices();
+        if (voices.length === 0) return;
+
+        const zhSel = document.getElementById('zh-select');
+        const enSel = document.getElementById('en-select');
+        zhSel.innerHTML = ''; enSel.innerHTML = '';
+
+        voices.forEach(v => {
+            let opt = document.createElement('option');
+            opt.value = v.name;
+            opt.innerText = v.name + (v.localService ? ' (本地)' : '');
+            if (v.lang.includes('zh')) zhSel.appendChild(opt);
+            if (v.lang.includes('en')) enSel.appendChild(opt);
+        });
+
+        // 自动恢复之前的选择
+        if(db.prefZh) zhSel.value = db.prefZh;
+        if(db.prefEn) enSel.value = db.prefEn;
+    }
+
+    window.speechSynthesis.onvoiceschanged = initVoices;
+    setTimeout(initVoices, 500);
+
+    function replayAudio() {
+        if (!task[idx]) return;
+        synth.cancel();
+        const word = task[idx];
+        const u = new SpeechSynthesisUtterance(word.text);
+        
+        const voices = synth.getVoices();
+        const zhName = document.getElementById('zh-select').value;
+        const enName = document.getElementById('en-select').value;
+
+        if (word.type === 'zh') {
+            u.voice = voices.find(v => v.name === zhName);
+            u.lang = 'zh-CN';
+            u.rate = 0.75;
+        } else {
+            u.voice = voices.find(v => v.name === enName);
+            u.lang = 'en-US';
+            u.rate = 0.8;
+        }
+        
+        // 记录偏好
+        db.prefZh = zhName; db.prefEn = enName; save();
+        
+        synth.speak(u);
+        inputArea.focus();
+    }
+
+    // --- 业务模块 ---
     function autoCheck() {
-        const userValue = inputArea.value.trim().toLowerCase();
+        const val = inputArea.value.trim().toLowerCase();
         const target = task[idx].text.trim().toLowerCase();
         const msg = document.getElementById('status-msg');
-
-        if (!userValue) return;
-
-        if (userValue === target) {
-            msg.innerText = "✅ 太棒了，完全正确！";
-            msg.style.color = "var(--success)";
+        if (!val) return;
+        if (val === target) {
+            msg.innerText = "✅ 正确！"; msg.style.color = "#34C759";
             handleResult(true);
         } else {
-            msg.innerText = `❌ 记错了（答案：${task[idx].text}）`;
-            msg.style.color = "var(--danger)";
+            msg.innerText = `❌ 错误: ${task[idx].text}`; msg.style.color = "#FF3B30";
             handleResult(false);
         }
     }
 
     function handleResult(isOk) {
-        const word = task[idx];
-        const item = db.words.find(w => w.text === word.text);
-        const intervals = [0, 1, 2, 4, 7, 15, 30];
-
-        if (isOk) {
-            item.level = Math.min((item.level || 0) + 1, 6);
-        } else {
-            item.level = 0; // 错误则重置
-            let err = db.errors.find(e => e.text === word.text);
-            if (err) err.count++; else db.errors.push({text: word.text, count: 1});
-        }
-
-        let next = new Date();
-        next.setDate(next.getDate() + (isOk ? intervals[item.level] : 1));
+        const item = db.words.find(w => w.text === task[idx].text);
+        if (isOk) { item.level = Math.min((item.level || 0) + 1, 6); }
+        else { item.level = 0; let err = db.errors.find(e => e.text === task[idx].text); if (err) err.count++; else db.errors.push({text: task[idx].text, count: 1}); }
+        let next = new Date(); next.setDate(next.getDate() + (isOk ? [0, 1, 2, 4, 7, 15, 30][item.level] : 1));
         item.nextDate = next.toISOString().split('T')[0];
-        
-        idx++;
-        save();
-        setTimeout(nextWord, 1500);
+        idx++; save(); setTimeout(nextWord, 1500);
     }
 
-    // 筛选逻辑：20中+20英权重，句子算2分
     function startSession() {
         const today = new Date().toISOString().split('T')[0];
         let pool = db.words.filter(w => !w.nextDate || w.nextDate <= today);
-        
         let cn = [], en = [], cw = 0, ew = 0;
         for (let w of pool) {
             let weight = (w.type === 'zh' && w.text.length > 5) || (w.type === 'en' && w.text.includes(' ')) ? 2 : 1;
             if (w.type === 'zh' && cw < 20) { cn.push(w); cw += weight; }
             else if (w.type === 'en' && ew < 20) { en.push(w); ew += weight; }
         }
-
         task = [...cn, ...en];
-        if (task.length === 0) { alert("今天太棒了，任务已全部达成！"); return; }
-        
-        idx = 0;
-        document.getElementById('start-btn').style.display = 'none';
-        document.getElementById('submit-btn').style.display = 'block';
-        inputArea.style.display = 'block';
-        nextWord();
+        if (task.length === 0) { alert("任务已完成！"); return; }
+        idx = 0; document.getElementById('start-btn').style.display = 'none';
+        document.getElementById('action-btns').style.display = 'block';
+        inputArea.style.display = 'block'; nextWord();
     }
 
     function nextWord() {
         if (idx >= task.length) {
             db.history[new Date().toISOString().split('T')[0]] = true;
             save(); render();
-            document.getElementById('word-display').innerText = "🏁 今日达成！";
-            inputArea.style.display = 'none';
-            document.getElementById('submit-btn').style.display = 'none';
+            document.getElementById('word-display').innerText = "🏁 任务达成！";
+            inputArea.style.display = 'none'; document.getElementById('action-btns').style.display = 'none';
             document.getElementById('start-btn').style.display = 'block';
             return;
         }
-        inputArea.value = "";
-        document.getElementById('status-msg').innerText = "";
-        const word = task[idx];
-        document.getElementById('word-display').innerText = "请听写...";
-        
-        // 更新进度
-        const cnd = task.slice(0, idx).filter(w => w.type === 'zh').length;
-        const end = task.slice(0, idx).filter(w => w.type === 'en').length;
-        document.getElementById('cn-progress').innerText = `中文: ${cnd}/20分`;
-        document.getElementById('en-progress').innerText = `英文: ${end}/20分`;
-
-        const u = new SpeechSynthesisUtterance(word.text);
-        u.lang = word.type === 'zh' ? 'zh-CN' : 'en-US';
-        window.speechSynthesis.speak(u);
-        inputArea.focus();
+        inputArea.value = ""; document.getElementById('status-msg').innerText = "";
+        document.getElementById('word-display').innerText = "请默写...";
+        document.getElementById('cn-stat').innerText = `中文: ${task.slice(0,idx).filter(w=>w.type==='zh').length}/20分`;
+        document.getElementById('en-stat').innerText = `英文: ${task.slice(0,idx).filter(w=>w.type==='en').length}/20分`;
+        replayAudio();
     }
 
     function saveWords() {
@@ -180,34 +205,29 @@
         if (!v) return;
         v.split(/[,，]/).map(t => t.trim()).filter(t => t).forEach(t => {
             if (!db.words.find(w => w.text === t)) {
-                db.words.push({ text: t, level: 0, type: /[a-zA-Z]/.test(t) ? 'en' : 'zh' });
+                db.words.push({ text: t, level: 0, nextDate: new Date().toISOString().split('T')[0], type: /[a-zA-Z]/.test(t) ? 'en' : 'zh' });
             }
         });
-        save(); alert("同步成功，请开始任务！");
-        document.getElementById('wordInput').value = "";
+        save(); alert("存入成功！"); document.getElementById('wordInput').value = ''; render();
     }
 
     function render() {
         const g = document.getElementById('calendar'); g.innerHTML = '';
-        const y = viewDate.getFullYear(), m = viewDate.getMonth();
-        document.getElementById('cal-title').innerText = `${y}年${m+1}月`;
+        const y = 2026, m = 4;
         const first = new Date(y, m, 1).getDay();
         const last = new Date(y, m + 1, 0).getDate();
-        const todayStr = new Date().toISOString().split('T')[0];
-
         for (let i = 0; i < first; i++) g.appendChild(document.createElement('div'));
         for (let d = 1; d <= last; d++) {
-            const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const ds = `2026-05-${String(d).padStart(2,'0')}`;
             const b = document.createElement('div');
             b.className = 'day-box' + (db.history[ds] ? ' done' : '');
-            if(ds === todayStr) b.classList.add('today');
+            if(ds === new Date().toISOString().split('T')[0]) b.classList.add('today');
             b.innerText = d; g.appendChild(b);
         }
-        document.getElementById('error-list').innerHTML = db.errors.sort((a,b)=>b.count-a.count).slice(0,5).map(e => `<div class="error-item"><span>${e.text}</span><span style="color:var(--danger)">${e.count}次错</span></div>`).join('');
+        document.getElementById('error-list').innerHTML = db.errors.sort((a,b)=>b.count-a.count).slice(0,5).map(e => `<div class="error-item"><span>${e.text}</span><span>${e.count}次错</span></div>`).join('');
     }
 
-    function moveMonth(s) { viewDate.setMonth(viewDate.getMonth() + s); render(); }
-    function save() { localStorage.setItem('dict_v2026_final', JSON.stringify(db)); }
+    function save() { localStorage.setItem('dict_v2026_final_real', JSON.stringify(db)); }
     render();
 </script>
 </body>
