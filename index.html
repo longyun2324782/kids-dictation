@@ -3,99 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>全自动 AI 默写 (坐标压缩版)</title>
+    <title>AI 自动默写 - 终极修复版</title>
     <style>
         :root { --primary: #007AFF; --bg: #F2F2F7; --card: #FFFFFF; --danger: #FF3B30; --success: #34C759; }
         body { font-family: -apple-system; margin: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; -webkit-user-select: none; }
-        .header { width: 100%; padding: 40px 20px 20px; background: var(--card); border-bottom: 1px solid #D1D1D6; text-align: center; }
-        .main-container { width: 95%; max-width: 800px; margin: 20px auto; padding-bottom: 50px; }
-        .card { background: var(--card); border-radius: 24px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        #word-display { font-size: 2.5rem; font-weight: 700; margin: 10px 0; color: var(--primary); text-align: center; }
-        .canvas-wrapper { width: 100%; height: 42vh; background: #fff; border: 2px solid #E5E5EA; border-radius: 20px; overflow: hidden; position: relative; }
-        canvas { width: 100%; height: 100%; touch-action: none; }
-        .btn { height: 60px; border-radius: 16px; border: none; font-size: 1.2rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn-primary { background: var(--primary); color: white; width: 100%; }
-        .btn-secondary { background: #E5E5EA; color: #3A3A3C; flex: 1; }
-        #status-msg { text-align: center; margin: 10px 0; font-weight: bold; min-height: 40px; border-radius: 10px; padding: 5px; }
-        .stats { display: flex; justify-content: space-around; font-size: 0.8rem; color: #8E8E93; margin-bottom: 15px; }
+        .header { width: 100%; padding: 40px 20px 10px; background: var(--card); border-bottom: 1px solid #D1D1D6; text-align: center; }
+        .main-container { width: 95%; max-width: 800px; margin: 15px auto; padding-bottom: 50px; }
+        .card { background: var(--card); border-radius: 20px; padding: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        
+        /* 诊断日志窗口 - 关键 */
+        #debug-log { font-size: 0.7rem; color: #888; background: #000; color: #0f0; padding: 5px; border-radius: 5px; margin-bottom: 10px; font-family: monospace; min-height: 20px; overflow: hidden; }
+
+        #word-display { font-size: 2.5rem; font-weight: 700; color: var(--primary); text-align: center; margin-bottom: 10px; }
+        .canvas-wrapper { width: 100%; height: 40vh; background: #fff; border: 2px solid #E5E5EA; border-radius: 16px; position: relative; touch-action: none; }
+        canvas { width: 100%; height: 100%; }
+        
+        .btn { height: 60px; border-radius: 14px; border: none; font-size: 1.1rem; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: #E5E5EA; color: #3A3A3C; }
+        
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 10px; }
-        .day-box { aspect-ratio: 1; background: #F2F2F7; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+        .day-box { aspect-ratio: 1; background: #eee; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
         .day-box.done { background: var(--success); color: white; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 style="margin:0; font-size: 1.4rem;">全自动智能默写训练</h1>
+    <h1 style="margin:0; font-size: 1.2rem;">2026 智能默写系统</h1>
 </div>
 
 <div class="main-container">
+    <div id="debug-log">系统就绪，等待指令...</div>
+    
     <div class="card">
-        <div class="stats">
-            <span id="cn-progress">中文: 0/20</span>
-            <span id="en-progress">英文: 0/20</span>
-        </div>
         <div id="word-display">等待开始</div>
-        <div id="status-msg">点击下方按钮开始任务</div>
-        
         <div class="canvas-wrapper">
             <canvas id="writeCanvas"></canvas>
         </div>
-
-        <div id="control-btns" style="display:none; gap:10px; margin-top:20px;">
+        <div style="display:flex; gap:10px;">
             <button class="btn btn-secondary" onclick="clearBoard()">重写</button>
-            <button class="btn btn-primary" style="flex:2" onclick="startAI()">提交批改</button>
+            <button class="btn btn-primary" id="submit-btn" onclick="startAI()" style="display:none; flex:2;">提交批改</button>
         </div>
-        <button id="start-btn" class="btn btn-primary" onclick="startSession()" style="margin-top:20px;">开始今日任务 (20中+20英)</button>
+        <button id="start-btn" class="btn btn-primary" onclick="startSession()">开始今日任务</button>
     </div>
 
     <div class="card">
-        <h3>批量词库录入</h3>
-        <textarea id="wordInput" style="width:100%; height:80px; border-radius:12px; padding:10px; border:1px solid #ddd;" placeholder="词语用逗号隔开..."></textarea>
-        <button class="btn btn-primary" onclick="saveWords()" style="margin-top:10px; height:50px;">保存到词库</button>
+        <h3 style="margin:0 0 10px 0;">词库录入</h3>
+        <textarea id="wordInput" style="width:100%; height:60px; border-radius:10px; padding:10px;" placeholder="词语用逗号隔开..."></textarea>
+        <button class="btn btn-primary" style="height:45px;" onclick="saveWords()">同步词库</button>
     </div>
 
     <div class="card">
-        <h3 style="color:var(--danger)">错题本</h3>
-        <div id="error-log" style="font-size:0.9rem;"></div>
+        <h3 style="margin:0 0 10px 0; color:var(--danger)">错题本</h3>
+        <div id="error-list" style="font-size:0.9rem;"></div>
     </div>
 
     <div class="card">
         <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <button onclick="moveMonth(-1)" style="border:none; background:none; color:var(--primary)">上个月</button>
             <b id="cal-title">2026年5月</b>
-            <button onclick="moveMonth(1)" style="border:none; background:none; color:var(--primary)">下个月</button>
         </div>
         <div class="calendar-grid" id="calendar"></div>
     </div>
 </div>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('dictation_v6_db')) || { words: [], history: {}, errorLog: [] };
+    let db = JSON.parse(localStorage.getItem('dict_v7_db')) || { words: [], history: {}, errors: [] };
     let currentTask = [], currentIdx = 0, strokes = [], currentStroke = [];
     let viewDate = new Date(2026, 4, 1);
 
     const canvas = document.getElementById('writeCanvas');
     const ctx = canvas.getContext('2d');
-    
+    const log = (msg) => { document.getElementById('debug-log').innerText = `LOG: ${msg}`; };
+
     function initCanvas() {
         const r = window.devicePixelRatio || 1;
         canvas.width = canvas.offsetWidth * r;
         canvas.height = canvas.offsetHeight * r;
         ctx.scale(r, r);
-        ctx.lineWidth = 6;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#1C1C1E';
+        ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
     }
     window.addEventListener('resize', initCanvas);
     setTimeout(initCanvas, 100);
 
-    // 手写监听逻辑：加入点抽样以减少数据量
+    // 绘图监听
     canvas.addEventListener('touchstart', e => {
         const rect = canvas.getBoundingClientRect();
         const p = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
         ctx.beginPath(); ctx.moveTo(p.x, p.y);
-        currentStroke = [Math.round(p.x), Math.round(p.y)];
+        currentStroke = [[Math.round(p.x)], [Math.round(p.y)], [Date.now()]];
         e.preventDefault();
     });
 
@@ -103,56 +99,40 @@
         const rect = canvas.getBoundingClientRect();
         const p = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
         ctx.lineTo(p.x, p.y); ctx.stroke();
-        // 每三个点记录一个，大幅压缩体积
-        if (currentStroke.length % 6 === 0) {
-            currentStroke.push(Math.round(p.x), Math.round(p.y));
-        }
+        currentStroke[0].push(Math.round(p.x));
+        currentStroke[1].push(Math.round(p.y));
+        currentStroke[2].push(Date.now());
         e.preventDefault();
     });
 
     canvas.addEventListener('touchend', () => {
-        if (currentStroke.length > 2) strokes.push(currentStroke);
+        if (currentStroke[0].length > 1) strokes.push(currentStroke);
     });
 
     function clearBoard() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         strokes = [];
-        document.getElementById('status-msg').innerText = "请书写";
-        document.getElementById('status-msg').style.background = "none";
+        log("画布已清空");
     }
 
-    // 核心AI批改逻辑：JSONP + 备选域名 + 轨迹压缩
+    // 核心AI：修复了坐标嵌套结构的核心问题
     function startAI() {
         if (strokes.length === 0) return;
-        const msg = document.getElementById('status-msg');
-        msg.innerText = "🔍 正在自动批改...";
-        msg.style.background = "#eee";
-
-        const word = currentTask[currentIdx];
-        const lang = word.type === 'zh' ? 'zh-Hans' : 'en';
-
-        // 格式化轨迹
-        const ink = strokes.map(s => {
-            const x = [], y = [];
-            for (let i = 0; i < s.length; i += 2) { x.push(s[i]); y.push(s[i+1]); }
-            return [x, y];
-        });
-
-        // 随机选择备用接口
-        const apiBases = [
-            'https://www.google.com.tw/inputtools/request',
-            'https://www.google.com/inputtools/request',
-            'https://inputtools.google.com/request'
-        ];
-        const apiBase = apiBases[Math.floor(Math.random() * apiBases.length)];
+        log("连接服务器中...");
         
-        const cbName = 'ai_cb_' + Date.now();
+        const word = currentTask[currentIdx];
+        const cbName = 'jsonp_cb_' + Date.now();
+        
+        // 核心修正：Google API 要求的 [[x...],[y...],[t...]] 结构
+        const inkData = JSON.stringify(strokes);
+
         window[cbName] = (data) => {
             if (data && data[0] === "SUCCESS") {
-                const res = data[1][0][1];
+                const candidates = data[1][0][1];
                 const target = word.text.trim().toLowerCase();
-                const isOk = res.some(c => c.toLowerCase() === target);
-                finalizeJudge(isOk, res[0]);
+                const isMatch = candidates.some(c => c.toLowerCase() === target);
+                log(`识别完成，结果：${candidates[0]}`);
+                applyJudge(isMatch, candidates[0]);
             }
             cleanup();
         };
@@ -165,49 +145,43 @@
 
         const script = document.createElement('script');
         script.id = cbName;
-        script.src = `${apiBase}?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8&lang=${lang}&ink=${encodeURIComponent(JSON.stringify(ink))}&cb=${cbName}`;
+        // 使用更宽松的 autotext 接口
+        script.src = `https://www.google.com/inputtools/request?ime=handwriting&app=autotext&cs=1&oe=UTF-8&lang=${word.type === 'zh' ? 'zh-Hans' : 'en'}&ink=${encodeURIComponent(inkData)}&cb=${cbName}`;
         script.onerror = () => {
-            msg.innerText = "网络异常，正在重试...";
-            setTimeout(startAI, 1500);
+            log("网络错误，重连中...");
+            setTimeout(startAI, 2000);
             cleanup();
         };
         document.body.appendChild(script);
-
-        // 5秒超时重连
-        setTimeout(() => { if (window[cbName]) { cleanup(); startAI(); } }, 5000);
     }
 
-    function finalizeJudge(isCorrect, bestGuess) {
-        const msg = document.getElementById('status-msg');
-        if (isCorrect) {
-            msg.innerText = "✅ 批改结果：正确";
-            msg.style.background = "#d4edda";
-            setTimeout(() => applyResult(true), 800);
-        } else {
-            msg.innerText = `❌ 错误 (系统识别为: ${bestGuess || '?'})`;
-            msg.style.background = "#f8d7da";
-            setTimeout(() => applyResult(false), 2000);
-        }
-    }
-
-    function applyResult(isCorrect) {
+    function applyJudge(isOk, guess) {
         const word = currentTask[currentIdx];
         const target = db.words.find(w => w.text === word.text);
         const steps = [0, 1, 2, 4, 7, 15, 30];
 
-        if (isCorrect) {
+        if (isOk) {
             target.level = Math.min(target.level + 1, 6);
+            document.getElementById('word-display').innerText = "✅ 正确！";
+            document.getElementById('word-display').style.color = "var(--success)";
         } else {
             target.level = 0;
-            const err = db.errorLog.find(e => e.text === word.text);
-            if (err) err.count++; else db.errorLog.push({ text: word.text, count: 1 });
+            const err = db.errors.find(e => e.text === word.text);
+            if (err) err.count++; else db.errors.push({ text: word.text, count: 1 });
+            document.getElementById('word-display').innerText = `❌ 识为:${guess || '?'}`;
+            document.getElementById('word-display').style.color = "var(--danger)";
         }
 
-        let n = new Date();
-        n.setDate(n.getDate() + (isCorrect ? steps[target.level] : 1));
-        target.nextDate = n.toISOString().split('T')[0];
-
-        save(); currentIdx++; updateUI(); nextWord();
+        let next = new Date();
+        next.setDate(next.getDate() + (isOk ? steps[target.level] : 1));
+        target.nextDate = next.toISOString().split('T')[0];
+        
+        save();
+        currentIdx++;
+        setTimeout(() => {
+            document.getElementById('word-display').style.color = "var(--primary)";
+            nextWord();
+        }, 1500);
     }
 
     function startSession() {
@@ -223,26 +197,27 @@
         }
 
         currentTask = [...cn, ...en];
-        if (currentTask.length === 0) { alert('今日已无任务'); return; }
+        if (currentTask.length === 0) { log("今日无任务"); return; }
         
         currentIdx = 0;
         document.getElementById('start-btn').style.display = 'none';
-        document.getElementById('control-btns').style.display = 'flex';
-        updateUI(); nextWord();
+        document.getElementById('submit-btn').style.display = 'block';
+        nextWord();
     }
 
     function nextWord() {
         if (currentIdx >= currentTask.length) {
             db.history[new Date().toISOString().split('T')[0]] = true;
-            save(); renderCalendar();
-            document.getElementById('word-display').innerText = "🏁 完成！";
-            document.getElementById('control-btns').style.display = 'none';
+            save(); render();
+            document.getElementById('word-display').innerText = "🏁 任务完成";
+            document.getElementById('submit-btn').style.display = 'none';
             document.getElementById('start-btn').style.display = 'block';
             return;
         }
         clearBoard();
         const word = currentTask[currentIdx];
         document.getElementById('word-display').innerText = "请听写...";
+        log(`正在读音: ${word.text}`);
         const u = new SpeechSynthesisUtterance(word.text);
         u.lang = word.type === 'zh' ? 'zh-CN' : 'en-US';
         window.speechSynthesis.speak(u);
@@ -256,38 +231,26 @@
                 db.words.push({ text: t, level: 0, nextDate: new Date().toISOString().split('T')[0], type: /[a-zA-Z]/.test(t) ? 'en' : 'zh' });
             }
         });
-        save(); alert('已保存'); document.getElementById('wordInput').value = '';
+        save(); log("词库已保存"); document.getElementById('wordInput').value = '';
     }
 
-    function renderCalendar() {
+    function render() {
         const g = document.getElementById('calendar'); g.innerHTML = '';
-        const y = viewDate.getFullYear(), m = viewDate.getMonth();
-        document.getElementById('cal-title').innerText = `${y}年${m+1}月`;
+        const y = 2026, m = 4; // 2026年5月
         const first = new Date(y, m, 1).getDay();
         const last = new Date(y, m + 1, 0).getDate();
         for (let i = 0; i < first; i++) g.appendChild(document.createElement('div'));
         for (let d = 1; d <= last; d++) {
-            const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const ds = `${y}-05-${String(d).padStart(2,'0')}`;
             const b = document.createElement('div');
             b.className = 'day-box' + (db.history[ds] ? ' done' : '');
             b.innerText = d; g.appendChild(b);
         }
+        document.getElementById('error-list').innerHTML = db.errors.sort((a,b)=>b.count-a.count).slice(0,5).map(e => `<div>${e.text} (${e.count}次)</div>`).join('');
     }
 
-    function updateUI() {
-        const cnd = currentTask.slice(0, currentIdx).filter(w => w.type === 'zh').length;
-        const end = currentTask.slice(0, currentIdx).filter(w => w.type === 'en').length;
-        document.getElementById('cn-progress').innerText = `中文: ${cnd}/${currentTask.filter(w=>w.type==='zh').length}`;
-        document.getElementById('en-progress').innerText = `英文: ${end}/${currentTask.filter(w=>w.type==='en').length}`;
-        const errList = document.getElementById('error-log');
-        errList.innerHTML = db.errorLog.sort((a,b)=>b.count-a.count).slice(0,5).map(e => `<div>${e.text} (${e.count}次)</div>`).join('');
-    }
-
-    function moveMonth(s) { viewDate.setMonth(viewDate.getMonth() + s); renderCalendar(); }
-    function save() { localStorage.setItem('dictation_v6_db', JSON.stringify(db)); }
-
-    renderCalendar();
-    updateUI();
+    function save() { localStorage.setItem('dict_v7_db', JSON.stringify(db)); }
+    render();
 </script>
 </body>
 </html>
